@@ -1,33 +1,61 @@
-const KEY = "ims_products";
+// src/services/storage.js
+import * as api from './api';
 
-export function getProducts() {
-  const raw = localStorage.getItem(KEY);
+// Note: We're keeping the same function names but now they call the real API
+
+export async function getProducts() {
   try {
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
+    const products = await api.getProducts();
+    return products;
+  } catch (error) {
+    console.error('Failed to fetch products:', error);
+    return []; // Return empty array on error
   }
 }
 
+export async function addProduct(product) {
+  try {
+    // Remove id and createdAt from product if they exist
+    const { id, createdAt, ...productData } = product;
+    const newProduct = await api.createProduct(productData);
+    return newProduct;
+  } catch (error) {
+    console.error('Failed to add product:', error);
+    throw error;
+  }
+}
+
+export async function getProductById(id) {
+  try {
+    const product = await api.getProductById(id);
+    return product;
+  } catch (error) {
+    console.error('Failed to fetch product:', error);
+    return null;
+  }
+}
+
+export async function updateProduct(id, updates) {
+  try {
+    const updatedProduct = await api.updateProduct(id, updates);
+    return updatedProduct;
+  } catch (error) {
+    console.error('Failed to update product:', error);
+    throw error;
+  }
+}
+
+export async function deleteProduct(id) {
+  try {
+    await api.deleteProduct(id);
+    return true;
+  } catch (error) {
+    console.error('Failed to delete product:', error);
+    throw error;
+  }
+}
+
+// For backward compatibility (if any component calls saveProducts directly)
 export function saveProducts(products) {
-  localStorage.setItem(KEY, JSON.stringify(products));
-}
-
-export function addProduct(product) {
-  const products = getProducts();
-  products.unshift(product);
-  saveProducts(products);
-}
-export function getProductById(id) {
-  const products = getProducts();
-  return products.find((p) => p.id === id);
-}
-
-export function updateProduct(id, updates) {
-  const products = getProducts();
-  const updatedProducts = products.map((p) =>
-    p.id === id ? { ...p, ...updates } : p
-  );
-  saveProducts(updatedProducts);
-  return updatedProducts;
+  console.warn('saveProducts is deprecated. Products are now saved via API.');
 }

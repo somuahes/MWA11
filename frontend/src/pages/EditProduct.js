@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
-import { getProductById, updateProduct } from "../services/storage";
+import { getProductById, updateProduct } from "../services/storage"; // Already updated
 
 import {
   Container,
@@ -12,6 +12,8 @@ import {
   Button,
   Stack,
   Divider,
+  Alert,
+  CircularProgress,
 } from "@mui/material";
 
 function EditProduct() {
@@ -19,11 +21,15 @@ function EditProduct() {
   const { id } = useParams();
 
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  const [name, setName] = useState("");
-  const [quantity, setQuantity] = useState("");
-  const [price, setPrice] = useState("");
-  const [description, setDescription] = useState("");
+  const [formData, setFormData] = useState({
+    name: "",
+    quantity: "",
+    price: "",
+    description: "",
+  });
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -32,52 +38,79 @@ function EditProduct() {
       return;
     }
 
-    const product = getProductById(id);
-
-    if (!product) {
-      alert("Product not found.");
-      navigate("/dashboard");
-      return;
-    }
-
-    setName(product.name ?? "");
-    setQuantity(String(product.quantity ?? ""));
-    setPrice(String(product.price ?? ""));
-    setDescription(product.description ?? "");
-
-    setLoading(false);
+    fetchProduct();
   }, [id, navigate]);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const fetchProduct = async () => {
+    try {
+      const product = await getProductById(id);
 
-    if (!name.trim() || quantity === "") {
-      alert("Name and quantity are required.");
+      if (!product) {
+        alert("Product not found.");
+        navigate("/dashboard");
+        return;
+      }
+
+      setFormData({
+        name: product.name ?? "",
+        quantity: String(product.quantity ?? ""),
+        price: String(product.price ?? ""),
+        description: product.description ?? "",
+      });
+    } catch (err) {
+      setError("Failed to load product. Please try again.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSaving(true);
+
+    if (!formData.name.trim() || formData.quantity === "") {
+      setError("Name and quantity are required.");
+      setSaving(false);
       return;
     }
 
-    const qty = Number(quantity);
-    const pr = price === "" ? 0 : Number(price);
+    const qty = Number(formData.quantity);
+    const pr = formData.price === "" ? 0 : Number(formData.price);
 
     if (Number.isNaN(qty) || qty < 0) {
-      alert("Quantity must be a valid number (0 or more).");
+      setError("Quantity must be a valid number (0 or more).");
+      setSaving(false);
       return;
     }
 
     if (Number.isNaN(pr) || pr < 0) {
-      alert("Price must be a valid number (0 or more).");
+      setError("Price must be a valid number (0 or more).");
+      setSaving(false);
       return;
     }
 
-    updateProduct(id, {
-      name: name.trim(),
-      quantity: qty,
-      price: pr,
-      description: description.trim(),
-      updatedAt: new Date().toISOString(),
-    });
+    try {
+      await updateProduct(id, {
+        name: formData.name.trim(),
+        quantity: qty,
+        price: pr,
+        description: formData.description.trim(),
+      });
 
-    navigate("/dashboard");
+      navigate("/dashboard");
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to update product. Please try again.");
+      setSaving(false);
+    }
+  };
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
   };
 
   return (
@@ -94,52 +127,78 @@ function EditProduct() {
 
         <Card variant="outlined" sx={{ borderRadius: 3 }}>
           <CardContent sx={{ p: 3 }}>
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
+
             {loading ? (
-              <Typography>Loading...</Typography>
+              <Stack alignItems="center" justifyContent="center" sx={{ py: 4 }}>
+                <CircularProgress />
+                <Typography sx={{ mt: 2 }}>Loading product...</Typography>
+              </Stack>
             ) : (
               <Stack component="form" onSubmit={handleSubmit} spacing={2}>
                 <TextField
+                  name="name"
                   label="Product Name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={formData.name}
+                  onChange={handleChange}
                   fullWidth
                   required
+                  disabled={saving}
                 />
 
                 <TextField
+                  name="quantity"
                   label="Quantity"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
+                  value={formData.quantity}
+                  onChange={handleChange}
                   fullWidth
                   required
                   helperText="Enter a number (e.g., 20)"
+                  disabled={saving}
                 />
 
                 <TextField
+                  name="price"
                   label="Price (optional)"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
+                  value={formData.price}
+                  onChange={handleChange}
                   fullWidth
                   helperText="Enter a number (e.g., 12.50)"
+                  disabled={saving}
                 />
 
                 <TextField
+                  name="description"
                   label="Description (optional)"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  value={formData.description}
+                  onChange={handleChange}
                   fullWidth
                   multiline
                   rows={3}
+                  disabled={saving}
                 />
 
                 <Divider />
 
                 <Stack direction="row" spacing={1.5} justifyContent="flex-end">
-                  <Button variant="outlined" onClick={() => navigate("/dashboard")}>
+                  <Button 
+                    variant="outlined" 
+                    onClick={() => navigate("/dashboard")}
+                    disabled={saving}
+                  >
                     Cancel
                   </Button>
-                  <Button variant="contained" type="submit">
-                    Update
+                  <Button 
+                    variant="contained" 
+                    type="submit"
+                    disabled={saving}
+                    startIcon={saving && <CircularProgress size={20} />}
+                  >
+                    {saving ? "Updating..." : "Update"}
                   </Button>
                 </Stack>
               </Stack>

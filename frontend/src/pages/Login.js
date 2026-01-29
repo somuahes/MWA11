@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { login, register } from "../services/api"; // Add this import
 
 import {
   Box,
@@ -9,24 +10,63 @@ import {
   TextField,
   Button,
   Stack,
+  ToggleButton,
+  ToggleButtonGroup,
+  Alert,
 } from "@mui/material";
 
 function Login() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [mode, setMode] = useState("login"); // 'login' or 'register'
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+  });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+    setLoading(true);
 
-    if (!username.trim() || !password.trim()) {
-      alert("Please enter username and password.");
-      return;
+    try {
+      let response;
+      
+      if (mode === "login") {
+        // Login
+        response = await login({
+          email: formData.email,
+          password: formData.password,
+        });
+      } else {
+        // Register
+        response = await register({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+        });
+      }
+
+      // Save token and user data
+      localStorage.setItem("token", response.token);
+      localStorage.setItem("user", JSON.stringify(response));
+      
+      // Navigate to dashboard
+      navigate("/dashboard");
+    } catch (err) {
+      setError(err.response?.data?.message || "Authentication failed. Please try again.");
+    } finally {
+      setLoading(false);
     }
+  };
 
-    // Mock login (until backend is ready)
-    localStorage.setItem("token", "mock-token");
-    navigate("/dashboard");
+  const handleInputChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
   };
 
   return (
@@ -55,29 +95,68 @@ function Login() {
               Inventory Management System
             </Typography>
             <Typography color="text.secondary">
-              Login to continue to your dashboard.
+              {mode === "login" ? "Login to continue" : "Create a new account"}
             </Typography>
           </Stack>
 
+          <ToggleButtonGroup
+            value={mode}
+            exclusive
+            onChange={(e, newMode) => newMode && setMode(newMode)}
+            fullWidth
+            sx={{ mb: 2 }}
+          >
+            <ToggleButton value="login">Login</ToggleButton>
+            <ToggleButton value="register">Register</ToggleButton>
+          </ToggleButtonGroup>
+
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+
           <Box component="form" onSubmit={handleSubmit}>
             <Stack spacing={2}>
+              {mode === "register" && (
+                <TextField
+                  name="name"
+                  label="Full Name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  fullWidth
+                  required
+                />
+              )}
+
               <TextField
-                label="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                name="email"
+                label="Email Address"
+                type="email"
+                value={formData.email}
+                onChange={handleInputChange}
                 fullWidth
+                required
               />
 
               <TextField
+                name="password"
                 label="Password"
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={formData.password}
+                onChange={handleInputChange}
                 fullWidth
+                required
+                helperText={mode === "register" ? "Minimum 6 characters" : ""}
               />
 
-              <Button type="submit" variant="contained" size="large">
-                Login
+              <Button 
+                type="submit" 
+                variant="contained" 
+                size="large"
+                disabled={loading}
+              >
+                {loading ? "Processing..." : mode === "login" ? "Login" : "Register"}
               </Button>
             </Stack>
           </Box>
@@ -87,7 +166,9 @@ function Login() {
             color="text.secondary"
             sx={{ display: "block", mt: 3 }}
           >
-            *Mock login enabled (backend not connected yet).
+            {mode === "login" 
+              ? "Demo credentials: test@test.com / password123" 
+              : "Create your account to get started"}
           </Typography>
         </CardContent>
       </Card>
