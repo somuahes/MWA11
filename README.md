@@ -3,7 +3,6 @@ A full-stack inventory management application with Reactjs frontend and Node.js/
 
 **Live URL:** https://mwa-11.vercel.app/ 
 
-NB: Register to proceed for first-time users
 
 ## Project Structure
 ````
@@ -143,4 +142,5 @@ Terminal 2 (Frontend):
 
 
 `npm start`
+
 
