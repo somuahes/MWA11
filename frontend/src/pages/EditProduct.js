@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
-import { getProductById, updateProduct } from "../services/storage"; // Already updated
+import { getProductById, updateProduct } from "../services/storage";
 
 import {
   Container,
@@ -38,32 +38,33 @@ function EditProduct() {
       return;
     }
 
-    fetchProduct();
-  }, [id, navigate]);
+    // Moved fetchProduct INSIDE useEffect
+    const fetchProduct = async () => {
+      try {
+        const product = await getProductById(id);
 
-  const fetchProduct = async () => {
-    try {
-      const product = await getProductById(id);
+        if (!product) {
+          alert("Product not found.");
+          navigate("/dashboard");
+          return;
+        }
 
-      if (!product) {
-        alert("Product not found.");
-        navigate("/dashboard");
-        return;
+        setFormData({
+          name: product.name ?? "",
+          quantity: String(product.quantity ?? ""),
+          price: String(product.price ?? ""),
+          description: product.description ?? "",
+        });
+      } catch (err) {
+        setError("Failed to load product. Please try again.");
+        console.error(err);
+      } finally {
+        setLoading(false);
       }
+    };
 
-      setFormData({
-        name: product.name ?? "",
-        quantity: String(product.quantity ?? ""),
-        price: String(product.price ?? ""),
-        description: product.description ?? "",
-      });
-    } catch (err) {
-      setError("Failed to load product. Please try again.");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetchProduct();
+  }, [id, navigate]); // No more missing dependency warning!
 
   const handleSubmit = async (e) => {
     e.preventDefault();
