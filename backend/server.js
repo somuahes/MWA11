@@ -14,7 +14,7 @@ const app = express();
 // CORS Configuration for Production
 const allowedOrigins = [
   'http://localhost:3000',                      // Local development
-  'https://inventory-app.vercel.app',           // Your Vercel frontend (update after deployment)
+  'https://mwa-11.vercel.app/',           // Your Vercel frontend (update after deployment) --updated
   'https://*.vercel.app'                        // All Vercel preview deployments
 ];
 
